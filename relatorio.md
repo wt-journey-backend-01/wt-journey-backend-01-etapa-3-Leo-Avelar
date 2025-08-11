@@ -1,182 +1,232 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 9 créditos restantes para usar o sistema de feedback AI.
+Você tem 8 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para Leo-Avelar:
 
 Nota final: **97.7/100**
 
-# Feedback para Leo-Avelar 🚀
+# Feedback para o Leo-Avelar 🚀
 
-Olá, Leo! Que jornada incrível você fez até aqui! 🎉 A sua nota de **97.7/100** é um reflexo do seu esforço e dedicação. Parabéns por construir uma API REST robusta, modular e com persistência real usando PostgreSQL e Knex.js! Vamos juntos analisar seu código para entender onde você brilhou e onde podemos dar aquele ajuste final para deixar tudo perfeito. 😉
+Olá, Leo! Que jornada incrível você fez até aqui! 🎉 A migração da sua API para usar PostgreSQL com Knex.js ficou muito bem estruturada, e isso é um mérito enorme! Você conseguiu implementar quase todos os requisitos essenciais com muita qualidade, e ainda foi além, entregando funcionalidades bônus que enriquecem bastante a aplicação. Parabéns pelo esforço e dedicação! 👏👏
 
 ---
 
 ## 🎯 Pontos Fortes que Merecem Destaque
 
-- **Estrutura do Projeto:** Você organizou muito bem seu projeto seguindo a arquitetura MVC, com pastas separadas para controllers, repositories, routes, db (migrations e seeds), e utils. Isso facilita muito a manutenção e escalabilidade do código. 👏
+- **Arquitetura Modular:** Seu projeto está muito bem organizado, seguindo o padrão MVC com pastas separadas para controllers, repositories, routes e utils. Isso facilita demais a manutenção e escalabilidade do código!  
+- **Configuração do Banco:** A conexão com o PostgreSQL via Knex está configurada corretamente, e você usou as variáveis de ambiente de forma adequada no `knexfile.js` e no `db/db.js`.  
+- **Migrations e Seeds:** As migrations criam as tabelas `agentes` e `casos` com os campos certos, incluindo a chave estrangeira com `onDelete("CASCADE")`. Os seeds estão populando as tabelas corretamente, o que é essencial para testes e desenvolvimento.  
+- **Validações e Tratamento de Erros:** Você usou o Zod para validar os dados recebidos e retornou os status HTTP corretos (400, 404, 201, 200, 204). Isso deixa a API robusta e amigável para quem consome.  
+- **Funcionalidades Bônus Implementadas:**  
+  - Filtragem por status e agente nos casos.  
+  - Endpoint para buscar o agente responsável por um caso.  
+  - Busca por keywords nos casos.  
+  - Ordenação dos agentes por data de incorporação.  
+  - Mensagens de erro customizadas para IDs inválidos.  
 
-- **Configuração do Knex e Banco de Dados:** Seu `knexfile.js` está configurado corretamente para diferentes ambientes, e o arquivo `db/db.js` faz a conexão de forma elegante, usando `process.env.NODE_ENV`. Isso é fundamental para garantir que a aplicação se conecte ao banco certo. 👍
-
-- **Migrations e Seeds:** Você criou migrations para as tabelas `agentes` e `casos` com os tipos e relacionamentos corretos, e os seeds populam os dados iniciais de forma adequada, garantindo que a base de dados esteja pronta para os testes e uso. 👌
-
-- **Validação de Dados:** O uso do Zod para validar os dados de entrada (`agenteSchema` e `casoSchema`) está muito bem implementado, garantindo que a API retorne status 400 para payloads mal formatados. Isso mostra cuidado com a integridade dos dados. 🛡️
-
-- **Tratamento de Erros e Status Codes:** Você implementou mensagens de erro customizadas e retornos HTTP apropriados (404, 400, 201, 204), o que torna sua API mais amigável e profissional. Excelente! ✨
-
-- **Funcionalidades Bônus Implementadas:** Você também conseguiu implementar filtros simples nos endpoints `/casos` por status e agente, o que demonstra atenção para além do básico. Muito bom! 🚀
+Isso mostra que você foi além do básico e entendeu muito bem os conceitos! 🌟
 
 ---
 
-## 🕵️‍♂️ Pontos de Atenção e Melhorias
+## 🔍 Análise e Sugestões para Melhorias
 
-### 1. Atualização Parcial (PATCH) de Agentes: Status 400 não retornado para payload inválido
+### 1. Falha no PATCH para Atualizar Agente com Payload Incorreto (Status 400)
 
-Você mencionou que o teste que falhou foi o que esperava um **status 400** quando o método PATCH para atualizar parcialmente um agente recebia um payload com formato incorreto. Ao analisar seu código no `controllers/agentesController.js`, vejo que você usa o Zod para validar o corpo da requisição:
+Você mencionou que o teste que falhou foi:  
+> "UPDATE: Recebe status code 400 ao tentar atualizar agente parcialmente com método PATCH e payload em formato incorreto"
 
-```js
-async function partialUpdate(req, res) {
-    const { id } = req.params;
-    const data = agenteSchema.partial().parse(req.body);
+Isso indica que, ao fazer um PATCH no recurso `/agentes/:id`, se o corpo da requisição estiver mal formatado (exemplo: campos errados, tipos incorretos), sua API deveria retornar um erro 400 (Bad Request) com uma mensagem clara.
 
-    const updatedAgente = await agentesRepository.update(id, data);
-    if (!updatedAgente) return res.status(404).json({ message: 'Agente não encontrado.' });
-    res.status(200).json(updatedAgente);
-}
-```
+**O que eu vi no seu código?**
 
-O problema aqui é que o método `parse` do Zod lança uma exceção se o payload for inválido, e você não está capturando essa exceção para enviar um status 400. Isso faz com que o erro não seja tratado corretamente e o cliente não receba a resposta esperada.
-
-**Como resolver?** Você deve envolver a validação em um bloco `try...catch` para capturar erros de validação e responder com status 400 e a mensagem de erro apropriada. Exemplo:
+No seu `agentesController.js`, o método `partialUpdate` está assim:
 
 ```js
-async function partialUpdate(req, res) {
+async function partialUpdate(req, res, next) {
     const { id } = req.params;
     try {
         const data = agenteSchema.partial().parse(req.body);
         const updatedAgente = await agentesRepository.update(id, data);
         if (!updatedAgente) return res.status(404).json({ message: 'Agente não encontrado.' });
         res.status(200).json(updatedAgente);
-    } catch (error) {
-        return res.status(400).json({ message: error.errors ? error.errors[0].message : 'Payload inválido.' });
+    } catch (err) {
+        next(err);
     }
 }
 ```
 
-Essa mesma lógica deve ser aplicada a todos os lugares onde você usa `.parse()` para validar dados recebidos (POST, PUT, PATCH), garantindo que erros de validação sejam tratados e retornem 400.
+Aqui você está usando o Zod para validar parcialmente o corpo da requisição, e em caso de erro, chama `next(err)` para o middleware de erro tratar. Isso é ótimo! Porém, para garantir que o erro 400 seja enviado corretamente, seu middleware de tratamento de erros (`errorHandler.js`) precisa estar configurado para capturar erros do Zod e enviar o status 400.
+
+**Minha hipótese:**  
+Se o middleware não estiver identificando o erro do Zod e retornando o status 400, a resposta pode estar vindo diferente do esperado, causando a falha.
+
+**Sugestão:**  
+Confira seu `errorHandler.js` para garantir que ele trate os erros do Zod assim:
+
+```js
+const { ZodError } = require('zod');
+
+function errorHandler(err, req, res, next) {
+    if (err instanceof ZodError) {
+        return res.status(400).json({ message: err.errors.map(e => e.message).join(', ') });
+    }
+    // outros tratamentos de erro...
+    res.status(500).json({ message: 'Erro interno do servidor' });
+}
+
+module.exports = { errorHandler };
+```
+
+Se ainda não tiver algo parecido, essa é a forma ideal de garantir que os erros de validação gerem o status 400 com uma mensagem útil.
 
 ---
 
-### 2. Endpoints de Busca e Filtros Bônus que Não Estão Funcionando Corretamente
+### 2. Falhas nos Testes Bônus Relacionados a Filtragem e Busca
 
-Você implementou o endpoint `/casos/:id/agente` para buscar o agente responsável por um caso, mas o teste indicou que ele não está funcionando corretamente.
+Percebi que alguns testes bônus não passaram, principalmente os que envolvem:
 
-No seu `casosController.js`:
+- Busca do agente responsável por um caso.
+- Filtragem de casos por palavras-chave no título e descrição.
+- Filtragem de agentes por data de incorporação com ordenação.
+- Mensagens de erro customizadas para argumentos inválidos.
+
+Vamos destrinchar esses pontos:
+
+#### a) Busca do agente responsável por um caso
+
+Você tem o endpoint no `casosRoutes.js`:
+
+```js
+router.get('/:id/agente', controller.getAgenteOfCaso);
+```
+
+E no `casosController.js`:
 
 ```js
 async function getAgenteOfCaso(req, res) {
-    const { id } = req.params;
-    const caso = await casosRepository.findById(id);
-    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${id}.` });
-
+    // ...
     const agente = await agentesRepository.findById(caso.agente_id);
     if (!agente) return res.status(404).json({ message: `Não foi possível encontrar casos correspondentes ao agente de Id: ${caso.agente_id}.` });
     res.status(200).json(agente);
 }
 ```
 
-Olhando para o repositório `agentesRepository.js`, o método `findById` está correto, então o problema pode estar no roteamento ou na forma como o endpoint está sendo chamado.
-
-**Possível causa:** A ordem das rotas no `casosRoutes.js` pode estar causando conflito. Você definiu:
+Tudo parece correto, mas a mensagem de erro está um pouco confusa. O texto diz "Não foi possível encontrar casos correspondentes ao agente..." quando o problema é que o agente não foi encontrado. O ideal seria:
 
 ```js
-router.get('/search', controller.search);
-router.get('/:id/agente', controller.getAgenteOfCaso);
-router.get('/:id', controller.getById);
-router.get('/', controller.getAll);
+return res.status(404).json({ message: `Não foi possível encontrar o agente de Id: ${caso.agente_id}.` });
 ```
 
-No Express, rotas mais genéricas (`/:id`) devem ficar depois das mais específicas (`/:id/agente`), o que você fez certo. Então, o problema pode estar no fato de que o parâmetro `id` pode estar vindo como string e não estar sendo convertido para número, o que pode afetar a busca no banco.
+Além disso, verifique se a rota está sendo chamada corretamente e se o parâmetro `id` está sendo convertido para número e validado (como você fez em outros endpoints). Isso evita erros silenciosos.
 
-**Sugestão:** Certifique-se de que o `id` é convertido para número (se sua tabela usa integer) antes de usar no repositório, para evitar problemas de tipo:
+#### b) Filtragem de casos por keywords
 
-```js
-const idNum = Number(id);
-if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
-const caso = await casosRepository.findById(idNum);
-```
-
-Além disso, revise se a rota está sendo testada corretamente.
-
----
-
-### 3. Filtros Complexos em Agentes por Data de Incorporação com Ordenação
-
-Você implementou o filtro por cargo e ordenação por `dataDeIncorporacao` no `agentesRepository.js`:
+No seu `casosRepository.js`, o método `search` está assim:
 
 ```js
-async function findAll(filters) {
-    try {
-        const query = db('agentes');
-        if (filters.cargo) query.where('cargo', 'ilike', `%${filters.cargo}%`);
-        if (filters.sort === 'dataDeIncorporacao') query.orderBy('dataDeIncorporacao', 'asc');
-        else if (filters.sort === '-dataDeIncorporacao') query.orderBy('dataDeIncorporacao', 'desc');
-        
-        const agentes = await query;
-        return agentes.map((agente) => ({
-            ...agente,
-            dataDeIncorporacao: agente.dataDeIncorporacao.toISOString().split('T')[0],
-        }));
-    } catch (err) {
-        console.error(err);
-        return null;
-    }
+async function search(q) {
+    return await db('casos').where(function () {
+        this.whereILike('titulo', `%${q}%`).orWhereILike('descricao', `%${q}%`);
+    });
 }
 ```
 
-Aqui seu código está no caminho certo, mas note que o parâmetro `sort` deve ser enviado exatamente como `'dataDeIncorporacao'` para ascendente e `'-dataDeIncorporacao'` para descendente. Se o cliente enviar outro valor ou se a query string estiver diferente, o filtro não será aplicado.
+Está correto e usa `whereILike` para busca case-insensitive, o que é ótimo! Verifique se o controller chama esse método e trata o caso de lista vazia com 404, que você já fez.
 
-**Dica:** Você pode melhorar a robustez adicionando logs para entender o que está chegando no `filters.sort` ou normalizar o valor antes de aplicar a ordenação.
+#### c) Filtragem e ordenação dos agentes por data de incorporação
 
----
+No `agentesRepository.js`, seu método `findAll` faz:
 
-### 4. Mensagens de Erro Customizadas para Argumentos Inválidos
+```js
+if (filters.sort === 'dataDeIncorporacao') query.orderBy('dataDeIncorporacao', 'asc');
+else if (filters.sort === '-dataDeIncorporacao') query.orderBy('dataDeIncorporacao', 'desc');
+```
 
-Seu código já tem mensagens customizadas para erros 404 e 400, o que é ótimo! Porém, para os erros de validação (payload inválido), como vimos no ponto 1, falta capturar as exceções do Zod para enviar mensagens claras.
+Isso está correto. Só certifique-se que no controller você está passando o parâmetro `sort` para o repository, e que no controller você valida o valor de `sort` para aceitar apenas essas duas opções (que você já fez!).
 
-**Sugestão:** Crie um middleware global para capturar erros de validação, ou envolva as validações em `try...catch` para enviar mensagens customizadas e evitar que o servidor retorne erros genéricos.
+Pode ser que algum detalhe no filtro esteja faltando nos testes bônus, mas seu código está no caminho certo.
 
----
+#### d) Mensagens de erro customizadas para argumentos inválidos
 
-## 📚 Recursos Recomendados para Você Se Aperfeiçoar Ainda Mais
+Você fez um trabalho muito bom retornando mensagens claras para IDs inválidos, como:
 
-- Para entender melhor como capturar e tratar erros de validação com Zod e Express:  
-  [Validação de dados em APIs Node.js/Express com Zod](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)  
-- Para aprofundar no uso do Knex.js e suas queries:  
-  [Documentação oficial do Knex Query Builder](https://knexjs.org/guide/query-builder.html)  
-- Para garantir que sua API retorne status HTTP corretos e mensagens claras:  
-  [Status HTTP 400 - Bad Request](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/400)  
-  [Status HTTP 404 - Not Found](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/404)  
-- Para organizar sua arquitetura MVC e manter o código limpo e modular:  
-  [Arquitetura MVC em Node.js](https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH)  
+```js
+if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+```
 
----
-
-## ✅ Resumo dos Pontos para Focar
-
-- **Tratar erros de validação do Zod com `try...catch`** nos métodos POST, PUT e PATCH para garantir que payloads inválidos retornem status 400 com mensagens claras.  
-- **Validar e converter parâmetros de rota** (como `id`) para o tipo correto antes de usar nas queries para evitar problemas de busca.  
-- **Revisar a robustez dos filtros e ordenações**, garantindo que o parâmetro `sort` seja interpretado corretamente.  
-- **Implementar tratamento global ou local de erros** para padronizar mensagens de erro personalizadas e evitar vazamento de erros internos.  
-- **Testar os endpoints de busca e filtros bônus** para garantir que retornem os dados esperados e mensagens de erro adequadas.  
+No entanto, para melhorar ainda mais, você pode centralizar essas validações em middlewares para evitar repetição e garantir consistência.
 
 ---
 
-Leo, você está com um projeto muito bem estruturado e funcional, só faltam esses ajustes finos para alcançar a perfeição! Continue assim, essa atenção aos detalhes fará de você um desenvolvedor cada vez mais forte. 💪🚀
+### 3. Organização e Estrutura do Projeto
 
-Se precisar de ajuda para implementar o tratamento de erros ou qualquer outra coisa, estou aqui para te ajudar! Vamos juntos nessa jornada! 🙌
+Sua estrutura está muito próxima do esperado! Só reforçando para manter exatamente assim, pois isso facilita para qualquer dev que pegar seu projeto:
 
-Abraços de Code Buddy! 🤖💙
+```
+📦 SEU-REPOSITÓRIO
+│
+├── package.json
+├── server.js
+├── knexfile.js
+├── INSTRUCTIONS.md
+│
+├── db/
+│   ├── migrations/
+│   ├── seeds/
+│   └── db.js
+│
+├── routes/
+│   ├── agentesRoutes.js
+│   └── casosRoutes.js
+│
+├── controllers/
+│   ├── agentesController.js
+│   └── casosController.js
+│
+├── repositories/
+│   ├── agentesRepository.js
+│   └── casosRepository.js
+│
+└── utils/
+    └── errorHandler.js
+```
+
+Você já está seguindo essa organização, o que é ótimo! Continue assim.
+
+---
+
+## 📚 Recursos para Você Aprofundar
+
+- Para garantir que a validação com Zod e o tratamento de erros funcionem perfeitamente, recomendo fortemente esse vídeo:  
+  [Validação de Dados e Tratamento de Erros na API](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)  
+  Ele vai te ajudar a entender como capturar erros de validação e retornar status 400 corretamente.
+
+- Caso queira revisar a configuração do banco e uso de migrations e seeds com Knex, estes recursos são muito bons:  
+  [Knex Migrations](https://knexjs.org/guide/migrations.html)  
+  [Knex Query Builder](https://knexjs.org/guide/query-builder.html)
+
+- Para melhorar ainda mais a organização do seu projeto e entender a arquitetura MVC aplicada a Node.js, veja:  
+  [Arquitetura MVC em Node.js](https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH)
+
+---
+
+## 📝 Resumo para Você Focar
+
+- ✅ Confirme que seu middleware de tratamento de erros (`errorHandler.js`) está capturando os erros do Zod e retornando status 400 com mensagens claras. Isso vai resolver o problema do PATCH com payload incorreto.  
+- ✅ Ajuste mensagens de erro para ficarem mais claras e específicas, como no endpoint que busca o agente responsável por um caso.  
+- ✅ Considere validar e converter os parâmetros `id` em todos os endpoints para garantir consistência.  
+- ✅ Continue usando a filtragem e ordenação no repository, mas revise se está passando os filtros corretamente no controller.  
+- ✅ Mantenha a organização do projeto como está, pois já está muito boa!  
+- ✅ Explore os recursos indicados para aprofundar seu conhecimento e aprimorar ainda mais seu código.
+
+---
+
+Leo, você está no caminho certo e já tem uma base sólida para construir APIs robustas e escaláveis! Continue praticando, testando e refinando seu código. A persistência e atenção aos detalhes são o que transformarão você em um mestre do backend! 💪🔥
+
+Se precisar de ajuda para ajustar o tratamento de erros ou qualquer outro ponto, estou aqui para te apoiar! 🚀
+
+Um grande abraço e sucesso na sua jornada! 👊😄
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
