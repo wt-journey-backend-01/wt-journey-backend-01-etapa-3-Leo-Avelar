@@ -17,15 +17,23 @@ async function getAll(req, res) {
 
 async function getById(req, res) {
 	const { id } = req.params;
-    const caso = await casosRepository.findById(id);
-    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${id}.` });
+    
+    const idNum = Number(id);
+    if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+    
+    const caso = await casosRepository.findById(idNum);
+    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${idNum}.` });
     res.status(200).json(caso);
 }
 
 async function getAgenteOfCaso(req, res) {
-	const { id } = req.params;
-    const caso = await casosRepository.findById(id);
-    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${id}.` });
+    const { id } = req.params;
+
+    const idNum = Number(id);
+    if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+
+    const caso = await casosRepository.findById(idNum);
+    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${idNum}.` });
 
     const agente = await agentesRepository.findById(caso.agente_id);
     if (!agente) return res.status(404).json({ message: `Não foi possível encontrar casos correspondentes ao agente de Id: ${caso.agente_id}.` });
@@ -41,41 +49,64 @@ async function search(req, res) {
     res.status(200).send(searchedCasos);
 }
 
-async function create(req, res) {
-    const data = casoSchema.parse(req.body);
-    if (!(await verifyAgente(data.agente_id))) return res.status(404).json({ message: `Não foi possível encontrar o agente de id: ${data.agente_id}.` });
-    const createdCaso = await casosRepository.create(data);
-    if (!createdCaso) return res.status(400).json({ message: 'Erro ao criar caso.' });
-    res.status(201).json(createdCaso);
-}
-
-async function update(req, res) {
-    const { id } = req.params;
-    const data = casoSchema.parse(req.body);
-    if (!(await verifyAgente(data.agente_id))) return res.status(404).json({ message: `Não foi possível encontrar o agente de id: ${data.agente_id}.` });
-
-    const updated = await casosRepository.update(id, data);
-    if (!updated) return res.status(404).json({ message: `Não foi possível atualizar o caso de id: ${id}.` });
-    res.status(200).json(updated);
-}
-
-async function partialUpdate(req, res) {
-    const { id } = req.params;
-
-    const data = casoSchema.partial().parse(req.body);
-    if(data.agente_id){
+async function create(req, res, next) {
+    try {
+        const data = casoSchema.parse(req.body);
         if (!(await verifyAgente(data.agente_id))) return res.status(404).json({ message: `Não foi possível encontrar o agente de id: ${data.agente_id}.` });
+        const createdCaso = await casosRepository.create(data);
+        if (!createdCaso) return res.status(400).json({ message: 'Erro ao criar caso.' });
+        res.status(201).json(createdCaso);
+    } catch (err) {
+        next(err);
     }
-    const updatedCaso = await casosRepository.update(id, data);
-    if (!updatedCaso) return res.status(404).json({ message: `Não foi possível atualizar o caso de id: ${id}.` });
-    res.status(200).json(updatedCaso);
+}
+
+async function update(req, res, next) {
+    const { id } = req.params;
+    
+    const idNum = Number(id);
+    if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+    
+    try {
+        const data = casoSchema.parse(req.body);
+        if (!(await verifyAgente(data.agente_id))) return res.status(404).json({ message: `Não foi possível encontrar o agente de id: ${data.agente_id}.` });
+
+        const updated = await casosRepository.update(idNum, data);
+        if (!updated) return res.status(404).json({ message: `Não foi possível atualizar o caso de id: ${idNum}.` });
+        res.status(200).json(updated);
+    } catch (err) {
+        next(err);
+    }
+}
+
+async function partialUpdate(req, res, next) {
+    const { id } = req.params;
+    
+    const idNum = Number(id);
+    if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+    
+    try{
+        const data = casoSchema.partial().parse(req.body);
+        if(data.agente_id){
+            if (!(await verifyAgente(data.agente_id))) return res.status(404).json({ message: `Não foi possível encontrar o agente de id: ${data.agente_id}.` });
+        }
+        const updatedCaso = await casosRepository.update(idNum, data);
+        if (!updatedCaso) return res.status(404).json({ message: `Não foi possível atualizar o caso de id: ${idNum}.` });
+        res.status(200).json(updatedCaso);
+    } catch (err) {
+        next(err);
+    }
 }
 
 async function remove(req, res) {
     const { id } = req.params;
-    const caso = await casosRepository.findById(id);
-    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${id}.` });
-    await casosRepository.delete(id);
+    
+    const idNum = Number(id);
+    if (isNaN(idNum)) return res.status(400).json({ message: 'ID inválido.' });
+    
+    const caso = await casosRepository.findById(idNum);
+    if (!caso) return res.status(404).json({ message: `Não foi possível encontrar o caso de Id: ${idNum}.` });
+    await casosRepository.delete(idNum);
     res.status(204).send();
 }
 
